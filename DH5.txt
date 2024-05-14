@@ -1,0 +1,60 @@
+# Read input from a text file
+$inputFile = "drive_commands.txt"
+$inputData = Get-Content $inputFile | Where-Object { $_ -match '\S' } # Remove empty lines
+
+# Output HTML header
+@"
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Drive Mapping Information</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+<h2>Drive Mapping Information</h2>
+<table>
+    <tr>
+        <th>Drive Letter</th>
+        <th>Root Path</th>
+    </tr>
+"@ | Out-File -FilePath "drive_mapping_info.html" -Encoding utf8
+
+foreach ($command in $inputData) {
+    # Execute the command
+    Invoke-Expression $command
+    
+    # Get the drive information
+    $driveLetter = $command -replace '.*Name "([^"]+)".*', '$1'
+    $driveRoot = $command -replace '.*Root "([^"]+)".*', '$1'
+    
+    # Record the information in HTML file
+    @"
+    <tr>
+        <td>$driveLetter</td>
+        <td>$driveRoot</td>
+    </tr>
+"@ | Out-File -FilePath "drive_mapping_info.html" -Append -Encoding utf8
+    
+    # Disconnect the drive
+    Remove-PSDrive -Name $driveLetter
+}
+
+# Output HTML footer
+@"
+</table>
+</body>
+</html>
+"@ | Out-File -FilePath "drive_mapping_info.html" -Append -Encoding utf8
