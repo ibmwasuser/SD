@@ -1,0 +1,78 @@
+# Read input from a text file
+$inputFile = "drive_commands.txt"
+$inputData = Get-Content $inputFile | Where-Object { $_ -match '\S' } # Remove empty lines
+
+# Specify the location to store the HTML file
+$htmlFilePath = "C:\Path\To\Your\Specific\Location\drive_mapping_info.html"
+
+# Output HTML header
+@"
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Drive Mapping Information</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+<h2>Drive Mapping Information</h2>
+<table>
+    <tr>
+        <th>Drive Letter</th>
+        <th>Hostname</th>
+        <th>Drive</th>
+        <th>Size (GB)</th>
+        <th>Free Space (GB)</th>
+    </tr>
+"@ | Out-File -FilePath $htmlFilePath -Encoding utf8
+
+foreach ($command in $inputData) {
+    # Execute the command
+    Invoke-Expression $command
+    
+    # Get the drive information
+    $driveLetter = $command -replace '.*Name "([^"]+)".*', '$1'
+    $driveRoot = $command -replace '.*Root "([^"]+)".*', '$1'
+    
+    # Split the root path into hostname and drive
+    $hostname = $driveRoot.Substring(0, $driveRoot.Length - 3)
+    $drive = $driveRoot.Substring($driveRoot.Length - 3)
+    
+    # Get drive size and free space
+    $driveInfo = Get-PSDrive -Name $driveLetter
+    $sizeGB = [math]::Round(($driveInfo.Used / 1GB), 2)
+    $freeSpaceGB = [math]::Round(($driveInfo.Free / 1GB), 2)
+    
+    # Record the information in HTML file
+    @"
+    <tr>
+        <td>$driveLetter</td>
+        <td>$hostname</td>
+        <td>$drive</td>
+        <td>$sizeGB</td>
+        <td>$freeSpaceGB</td>
+    </tr>
+"@ | Out-File -FilePath $htmlFilePath -Append -Encoding utf8
+    
+    # Disconnect the drive
+    Remove-PSDrive -Name $driveLetter
+}
+
+# Output HTML footer
+@"
+</table>
+</body>
+</html>
+"@ | Out-File -FilePath $htmlFilePath -Append -Encoding utf8
