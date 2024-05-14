@@ -1,0 +1,90 @@
+# Read input from a text file
+$inputFile = "c:\temp\co.txt"
+$inputData = Get-Content $inputFile | Where-Object { $_ -match '\S' } # Remove empty lines
+
+# Specify the location to store the HTML file
+$htmlFilePath = "C:\temp\drive_mapping_info.html"
+
+# Output HTML header
+$htmlContent = @"
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Drive Mapping Information</title>
+    <style>
+        table {
+            border-collapse: collapse;
+            width: 50%;
+            margin: auto;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+            width: auto;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+<h2>Drive Mapping Information</h2>
+<table>
+    <tr>
+        <th>Hostname</th>
+        <th>Drive</th>
+        <th>Size (GB)</th>
+        <th>Free Space (GB)</th>
+        <th>Free Space (%)</th>
+    </tr>
+"@
+
+# Generate unique drive letters for each mapping
+$uniqueDriveLetter = 'G'
+
+# Append drive mapping information to HTML content
+foreach ($command in $inputData) {
+    # Execute the command
+    Invoke-Expression $command
+    
+    # Extract drive information
+    $driveRoot = $command -replace '.*Root "([^"]+)".*', '$1'
+    $hostname = ($driveRoot -replace '\\', '').Substring(0, ($driveRoot.Length - 5))
+    $drive = $uniqueDriveLetter
+
+    # Get drive size and free space
+    $driveInfo = Get-PSDrive -Name $drive
+    $sizeGB = [math]::Round(($driveInfo.Used + $driveInfo.Free) / 1GB, 2)
+    $freeSpaceGB = [math]::Round($driveInfo.Free / 1GB, 2)
+    $freeSpacePercentage = [math]::Round(($driveInfo.Free / ($driveInfo.Used + $driveInfo.Free)) * 100, 2)
+    
+    # Append drive information to HTML content with conditional styling
+    $htmlContent += @"
+    <tr style='background-color: $(if ($freeSpacePercentage -lt 10) { 'red' } elseif ($freeSpacePercentage -lt 30) { 'orange' } else { 'white' })'>
+        <td>$hostname</td>
+        <td>$drive</td>
+        <td>$sizeGB</td>
+        <td>$freeSpaceGB</td>
+        <td>$freeSpacePercentage</td>
+    </tr>
+    "@
+
+    # Increment the unique drive letter for the next mapping
+    $uniqueDriveLetter = [char]([int][char]$uniqueDriveLetter + 1)
+    
+    # Disconnect the drive
+    Remove-PSDrive -Name $drive -ErrorAction SilentlyContinue
+}
+
+# Close HTML content
+$htmlContent += @"
+</table>
+</body>
+</html>
+"@
+
+# Write HTML content to file
+$htmlContent | Out-File -FilePath $htmlFilePath -Encoding utf8
+
+Write-Host "Drive mapping information saved to $htmlFilePath"
