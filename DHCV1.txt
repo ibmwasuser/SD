@@ -1,0 +1,155 @@
+# List of server names
+$servers = @(
+    "devecpvm018834",
+    "server2",
+    "server3",
+    # Add more server names here
+)
+
+# Loop through each server
+foreach ($server in $servers) {
+    Write-Host "Processing server: $server"
+    try {
+        # Execute command on remote server
+        $diskInfo = Invoke-Command -ComputerName $server -ScriptBlock {
+            Get-WmiObject -Class Win32_LogicalDisk | Select-Object DeviceID, VolumeName, Size
+        } -Authentication Negotiate
+
+        # Output disk info for the server
+        $diskInfo
+    } catch {
+        Write-Host "Failed to retrieve disk info for server: $server"
+        Write-Host $_.Exception.Message
+    }
+}
+
+-----
+# Path to the text file containing server names
+$file = "C:\path\to\servers.txt"
+
+# Check if the file exists
+if (Test-Path $file) {
+    # Read server names from the text file
+    $servers = Get-Content $file
+
+    # Loop through each server
+    foreach ($server in $servers) {
+        Write-Host "Processing server: $server"
+        try {
+            # Execute command on remote server
+            $diskInfo = Invoke-Command -ComputerName $server -ScriptBlock {
+                Get-WmiObject -Class Win32_LogicalDisk | Select-Object DeviceID, VolumeName, Size
+            } -Authentication Negotiate
+
+            # Output disk info for the server
+            $diskInfo
+        } catch {
+            Write-Host "Failed to retrieve disk info for server: $server"
+            Write-Host $_.Exception.Message
+        }
+    }
+} else {
+    Write-Host "File not found: $file"
+}
+
+-----
+# Path to the text file containing server names
+$file = "C:\path\to\servers.txt"
+
+# Output HTML file path
+$htmlFile = "C:\path\to\output.html"
+
+# Start building the HTML content
+$html = "<html><head><title>Disk Info</title></head><body><h1>Disk Information for Servers</h1>"
+
+# Check if the file exists
+if (Test-Path $file) {
+    # Read server names from the text file
+    $servers = Get-Content $file
+
+    # Loop through each server
+    foreach ($server in $servers) {
+        Write-Host "Processing server: $server"
+        try {
+            # Execute command on remote server
+            $diskInfo = Invoke-Command -ComputerName $server -ScriptBlock {
+                Get-WmiObject -Class Win32_LogicalDisk | Select-Object DeviceID, VolumeName, Size
+            } -Authentication Negotiate
+
+            # Add server name to HTML
+            $html += "<h2>$server</h2>"
+
+            # Add disk information to HTML
+            $html += "<table border='1'><tr><th>DeviceID</th><th>VolumeName</th><th>Size</th></tr>"
+            foreach ($disk in $diskInfo) {
+                $html += "<tr><td>$($disk.DeviceID)</td><td>$($disk.VolumeName)</td><td>$($disk.Size)</td></tr>"
+            }
+            $html += "</table>"
+
+        } catch {
+            Write-Host "Failed to retrieve disk info for server: $server"
+            Write-Host $_.Exception.Message
+        }
+    }
+
+    # Close HTML tags
+    $html += "</body></html>"
+
+    # Save HTML content to file
+    $html | Out-File -FilePath $htmlFile -Encoding UTF8
+
+    Write-Host "HTML output saved to: $htmlFile"
+} else {
+    Write-Host "File not found: $file"
+}
+
+-----
+
+# Path to the text file containing server names
+$file = "C:\path\to\servers.txt"
+
+# Output HTML file path
+$htmlFile = "C:\path\to\output.html"
+
+# Start building the HTML content
+$html = "<html><head><title>Disk Info</title></head><body><h1>Disk Information for Servers</h1>"
+
+# Check if the file exists
+if (Test-Path $file) {
+    # Read server names from the text file
+    $servers = Get-Content $file
+
+    # Loop through each server
+    foreach ($server in $servers) {
+        Write-Host "Processing server: $server"
+
+        # Execute command on remote server
+        $diskInfo = Invoke-Command -ComputerName $server -ScriptBlock {
+            Get-WmiObject -Class Win32_LogicalDisk | Select-Object DeviceID, VolumeName, Size
+        } -Authentication Negotiate -ErrorAction SilentlyContinue
+
+        if ($diskInfo) {
+            # Add server name to HTML
+            $html += "<h2>$server</h2>"
+
+            # Add disk information to HTML
+            $html += "<table border='1'><tr><th>DeviceID</th><th>VolumeName</th><th>Size</th></tr>"
+            foreach ($disk in $diskInfo) {
+                $html += "<tr><td>$($disk.DeviceID)</td><td>$($disk.VolumeName)</td><td>$($disk.Size)</td></tr>"
+            }
+            $html += "</table>"
+        } else {
+            Write-Host "Failed to retrieve disk info for server: $server"
+        }
+    }
+
+    # Close HTML tags
+    $html += "</body></html>"
+
+    # Save HTML content to file
+    $html | Out-File -FilePath $htmlFile -Encoding UTF8
+
+    Write-Host "HTML output saved to: $htmlFile"
+} else {
+    Write-Host "File not found: $file"
+}
