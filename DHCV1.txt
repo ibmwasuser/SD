@@ -1,6 +1,6 @@
 # List of server names
 $servers = @(
-    "devecpvm018834",
+    "server1",
     "server2",
     "server3",
     # Add more server names here
