@@ -1,0 +1,17 @@
+# Ensure the remote machine name is set
+$remoteMachine = "DEVECPVM619394"
+
+# Establish a CIM session
+$session = New-CimSession -ComputerName $remoteMachine -Authentication Default
+
+# Retrieve and format disk information
+$diskInfo = Get-CimInstance -CimSession $session -ClassName Win32_LogicalDisk -Filter "DriveType=3" | 
+            Select-Object DeviceID, VolumeName, Size, FreeSpace
+
+$diskInfoFormatted = $diskInfo | ForEach-Object {
+    [pscustomobject]@{
+        Drive            = $_.DeviceID
+        VolumeName       = $_.VolumeName
+        SizeGB           = [math]::Round($_.Size / 1GB, 2)
+        FreeSpaceGB      = [math]::Round($_.FreeSpace / 1GB, 2)
+        UsedSpaceGB      = [math]:
