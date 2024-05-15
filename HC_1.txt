@@ -1,0 +1,93 @@
+# Path to the text file containing server names
+$file = "C:\path\to\servers.txt"
+
+# Output HTML file path
+$htmlFile = "C:\path\to\output.html"
+
+# Start building the HTML content
+$html = "<html><head><title>Disk Info</title><style>"
+$html += @"
+    table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+    th, td {
+        border: 1px solid black;
+        padding: 8px;
+        text-align: left;
+    }
+    tr:nth-child(even) {
+        background-color: #f2f2f2;
+    }
+"@
+
+# Add conditional formatting based on FreeSpace(%)
+$html += @"
+    .low-free {
+        background-color: red;
+    }
+    .medium-free {
+        background-color: orange;
+    }
+    .high-free {
+        background-color: transparent;
+    }
+"@
+$html += "</style></head><body>"
+
+# Check if the file exists
+if (Test-Path $file) {
+    # Read server names from the text file
+    $servers = Get-Content $file
+
+    # Loop through each server
+    foreach ($server in $servers) {
+        Write-Host "Processing server: $server"
+
+        # Extract computer name till before underscore
+        $computerName = ($server -split "_")[0]
+
+        # Execute command on remote server
+        $diskInfo = Invoke-Command -ComputerName $computerName -ScriptBlock {
+            Get-WmiObject -Class Win32_LogicalDisk | Where-Object { ($_.DriveType -eq 3) -and ($_.DeviceID -ne "Z:") } | Select-Object DeviceID, VolumeName, `
+                @{Name="Size(GB)"; Expression={[math]::Round($_.Size / 1GB, 2)}}, `
+                @{Name="FreeSpace(GB)"; Expression={[math]::Round($_.FreeSpace / 1GB, 2)}}, `
+                @{Name="FreeSpace(%)"; Expression={[math]::Round(($_.FreeSpace / $_.Size) * 100, 2)}}
+        } -Authentication Negotiate -ErrorAction SilentlyContinue
+
+        if ($diskInfo) {
+            # Add server name to HTML only if there is disk info
+            $html += "<h2>$computerName</h2>"
+
+            # Add disk information to HTML
+            $html += "<table border='1'><tr><th>DeviceID</th><th>VolumeName</th><th>Size(GB)</th><th>FreeSpace(GB)</th><th>FreeSpace(%)</th></tr>"
+            foreach ($disk in $diskInfo) {
+                # Determine CSS class based on FreeSpace(%)
+                $cssClass = ""
+                if ($disk.'FreeSpace(%)' -lt 10) {
+                    $cssClass = "low-free"
+                } elseif ($disk.'FreeSpace(%)' -le 30) {
+                    $cssClass = "medium-free"
+                } else {
+                    $cssClass = "high-free"
+                }
+
+                # Add table row with conditional formatting
+                $html += "<tr class='$cssClass'><td>$($disk.DeviceID)</td><td>$($disk.VolumeName)</td><td>$($disk.'Size(GB)')</td><td>$($disk.'FreeSpace(GB)')</td><td>$($disk.'FreeSpace(%)')</td></tr>"
+            }
+            $html += "</table>"
+        } else {
+            Write-Host "Failed to retrieve disk info for server: $computerName"
+        }
+    }
+
+    # Close HTML tags
+    $html += "</body></html>"
+
+    # Save HTML content to file
+    $html | Out-File -FilePath $htmlFile -Encoding UTF8
+
+    Write-Host "HTML output saved to: $htmlFile"
+} else {
+    Write-Host "File not found: $file"
+}
