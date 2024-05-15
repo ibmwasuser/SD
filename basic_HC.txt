@@ -1,5 +1,5 @@
 # Ensure the remote machine name is set
-$remoteMachine = "DEVECPVM619394"
+$remoteMachine = "test"
 
 # Establish a CIM session
 $session = New-CimSession -ComputerName $remoteMachine -Authentication Default
