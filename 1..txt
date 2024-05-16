@@ -1,0 +1,54 @@
+# Path to the text file containing server names
+$file = "C:\path\to\servers.txt"
+
+# Output HTML file path
+$htmlFile = "C:\path\to\output.html"
+
+# Start building the HTML content
+$html = "<html><head><title>Disk Info</title></head><body><h1>Disk Information for Servers</h1>"
+
+# Check if the file exists
+if (Test-Path $file) {
+    # Read server names from the text file
+    $servers = Get-Content $file
+
+    # Loop through each server
+    foreach ($server in $servers) {
+        Write-Host "Processing server: $server"
+
+        # Execute command on remote server
+        $diskInfo = Invoke-Command -ComputerName $server -ScriptBlock {
+            Get-WmiObject -Class Win32_LogicalDisk | Where-Object { $_.DriveType -eq 3 } | Select-Object DeviceID, VolumeName, `
+                @{Name="Size(GB)"; Expression={[math]::Round($_.Size / 1GB, 2)}}, `
+                @{Name="FreeSpace(GB)"; Expression={[math]::Round($_.FreeSpace / 1GB, 2)}}, `
+                @{Name="FreeSpace(%)"; Expression={[math]::Round(($_.FreeSpace / $_.Size) * 100, 2)}}
+        } -Authentication Negotiate -ErrorAction SilentlyContinue
+
+        if ($diskInfo) {
+            # Add server name to HTML
+            $html += "<h2>$server</h2>"
+
+            # Add disk information to HTML
+            $html += "<table border='1'><tr><th>DeviceID</th><th>VolumeName</th><th>Size(GB)</th><th>FreeSpace(GB)</th><th>FreeSpace(%)</th></tr>"
+            foreach ($disk in $diskInfo) {
+                $freeSpacePercentage = $disk.'FreeSpace(%)'
+                # Apply conditional background color based on FreeSpace(%)
+                $bgColor = if ($freeSpacePercentage -lt 20) { 'red' } elseif ($freeSpacePercentage -le 30) { 'orange'} else {'transparent'}
+                $html += "<tr style='background-color: $bgColor'><td>$($disk.DeviceID)</td><td>$($disk.VolumeName)</td><td>$($disk.'Size(GB)')</td><td>$($disk.'FreeSpace(GB)')</td><td>$($disk.'FreeSpace(%)')</td></tr>"
+            }
+            $html += "</table>"
+        } else {
+            Write-Host "Failed to retrieve disk info for server: $server"
+        }
+    }
+
+    # Close HTML tags
+    $html += "</body></html>"
+
+    # Save HTML content to file
+    $html | Out-File -FilePath $htmlFile -Encoding UTF8
+
+    Write-Host "HTML output saved to: $htmlFile"
+} else {
+    Write-Host "File not found: $file"
+}
